@@ -1,0 +1,318 @@
+Please read the attached text and write:
+
+1 Linear sequential presentation of the plot (synopsis)
+2 Number of chapters
+3 Write a logline (a compelling, enticing one-sentence description of the book)
+4 Write an annotation (summary or blurb)
+5 Write a short description in 10-12 words (intriguing and captivating for users, for push notifications)
+6 What are the key plot points?
+7 To which genres does the text belong, and with what likelihood (no more than three genres)?
+8 List the main characters and describe them (provide their characteristics)
+9 Specify how the main characters are connected to each other
+10 What are the main themes addressed in the book (top 3 themes)?
+11 What are the main locations in the book?
+12 What are the main literary tropes in the book (no more than 5)?
+13 In what time period (era) do the events of the book take place?
+14 What is the age restriction for the book?
+15 Are there any taboo topics in the book, which ones, and why?
+16 How many sexual scenes are in the book?
+
+
+Дополнительные задания: 
+
+1 Выбрать master_genre (single option)
+
+2 Выбрать category (multi-select, 1 to 10 options)
+2.1 Выбрать category_modest (multi-select, 1 to 10 options). 
+Необходимо взять выбранные категории из category и отфильтровать те которые существуют в category_modest.
+
+3 Выбрать tag (single-select)
+3.1 Выбрать tag_modest (single-select). 
+Если выбранный элемент из списка tag не существуют в списке tag_modest - оставляем поле пустым.
+
+4 Выбрать additional tags (multi-select, 1 to 10 options)
+4.1 Выбрать additional tags_modest (multi-select, 1 to 10 options).
+Необходимо взять выбранные тэги из additional tags и отфильтровать те которые существуют в additional tags_modest.
+
+5 Выбрать tag_triggers (multi-select, 1 to 10 options)
+
+6 Выбрать tag_finale (single-select)
+HFN (Happy for now)
+HEA (Happy ever after)
+cliffhanger
+
+
+Формат ответа для дополнительных заданий(пример):
+
+master_genre 
+romance
+
+category
+paranormal, vampire, BDSM
+
+category_modest
+paranormal, vampire
+
+tag
+dirty talk
+
+tag_modest
+- 
+
+additional tags
+pov, sex, drama, CEO
+
+additional tags_modest
+pov, drama, CEO
+
+tag_triggers
+blood, forced actions, jail
+
+tag_finale
+HFN
+
+
+
+--- Data Sets ---
+
+master_genre (single-select)
+- suspense  
+- romance  
+- lgbt  
+- mafia  
+- friends to lovers  
+- enemies to lovers  
+- Dominant  
+- BDSM  
+- boss  
+- billionaire  
+- vampire  
+- werewolf  
+- newadult  
+- paranormal
+
+category (multi-select)
+- suspense  
+- newadult  
+- paranormal  
+- romance  
+- friends to lovers  
+- vampire  
+- Dominant  
+- BDSM  
+- boss  
+- werewolf  
+- billionaire  
+- mafia  
+- enemies to lovers  
+- lgbt  
+- sports  
+- MILF
+
+category_modest (multi-select)
+- suspense  
+- paranormal  
+- newadult  
+- alpha  
+- boss  
+- romance  
+- vampire  
+- friends to lovers  
+- strong love  
+- werewolf  
+- billionaire  
+- mafia  
+- lgbt  
+- enemies to lovers  
+- female lead  
+- sports
+
+tag (single-select)
+- sports  
+- secret baby  
+- ASMR  
+- dirty talk  
+- flirty  
+- fantasy  
+- arranged marriage  
+- group  
+- office  
+- Latin  
+- historical  
+- comfort  
+- college  
+- strangers  
+- romcom  
+- FREE  
+- second chance  
+- drama  
+- sci fi  
+
+tag_modest (single-select)
+- sports  
+- secret baby  
+- ASMR  
+- college  
+- romcom  
+- fantasy  
+- love talk  
+- comfort  
+- historical  
+- flirty  
+- arranged marriage  
+- strangers  
+- party  
+- FREE  
+- Latin  
+- office  
+- second chance  
+- drama  
+- sci fi 
+
+additional tags (multi-select)
+- reverse harem  
+- sports  
+- secret baby  
+- ASMR  
+- pov  
+- comfort  
+- romantic  
+- steamy  
+- spicy  
+- sex  
+- ghost  
+- dirty talk  
+- drama  
+- historical  
+- CEO  
+- Halloween  
+- Christmas  
+- boyfriend  
+- love triangle  
+- college  
+- strangers  
+- dialogue  
+- monologue  
+- Black voices  
+- British accent  
+- Asian voices  
+- short length  
+- medium length  
+- extended length  
+- romcom  
+- second chance  
+- shifters  
+- small town  
+- suspense  
+- fantasy  
+- psychological  
+- dark  
+- group  
+- aliens  
+- royal  
+- sci fi  
+
+additional tags_modest (multi-select)
+- reverse harem  
+- sports  
+- secret baby  
+- ASMR  
+- comfort  
+- pov  
+- romantic  
+- playful  
+- passionate  
+- love  
+- party  
+- ghost  
+- love talk  
+- historical  
+- CEO  
+- drama  
+- Christmas  
+- romcom  
+- strangers  
+- Halloween  
+- college  
+- camping  
+- boyfriend  
+- romanitc  
+- monologue  
+- dialogue  
+- short length  
+- medium length  
+- extended length  
+- love triangle  
+- second chance  
+- shifters  
+- Black voices  
+- British accent  
+- Asian voices  
+- small town  
+- suspense  
+- fantasy  
+- psychological  
+- dark  
+- aliens  
+- royal  
+- sci fi
+
+tag_triggers (multi-select)
+- explicit scenes  
+- strong language  
+- bullying  
+- PTSD  
+- murder  
+- kidnapping  
+- horror  
+- guns  
+- forced submission  
+- dubious consent  
+- blood  
+- anxiety  
+- abuse  
+- addiction  
+- fisting  
+- violence  
+- rape  
+- forced actions  
+- miscarriage  
+- rough  
+- self-harm  
+- loss  
+- grief  
+- cheating  
+- death  
+- drug use  
+- gore  
+- assault  
+- physical abuse  
+- stalking  
+- jail  
+- suicide  
+- depression  
+- blackmailing  
+- harassment  
+- underage  
+- threats  
+- torture scenes  
+- kissing  
+- crime  
+- human trafficking  
+- prostitution  
+- alcoholism  
+- mental illness  
+- panic attacks  
+- butt  
+- incest  
+- forced seduction  
+- cursing  
+- child
+
+tag_finale (single-select)
+- HFN
+- HEA
+- cliffhanger
+
+
+--- --- --- --- ---

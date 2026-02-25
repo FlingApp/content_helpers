@@ -1,0 +1,37 @@
+{
+    "characters": [
+        {
+            "id": "emma",
+            "voice_id": "aRlmTYIQo6Tlg5SlulGC"
+        },
+        {
+            "id": "andrew",
+            "voice_id": "MFZUKuGQUsGJPQjTS4wC"
+        },
+        {
+            "id": "jacob",
+            "voice_id": "2EiwWnXFnvU5JabPnv8n"
+        },
+        {
+            "id": "amy",
+            "voice_id": "qBDvhofpxp92JgXJxDjB"
+        },
+        {
+            "id": "sienna",
+            "voice_id": "pFZP5JQG7iQjIQuC4Bku"
+        },
+        {
+            "id": "logan",
+            "voice_id": "fCxG8OHm4STbIsWe4aT9"
+        },
+        {
+            "id": "leon",
+            "voice_id": "JBFqnCBsd6RMkjVDRZzb"
+        },
+        {
+            "id": "lewis",
+            "voice_id": "CwhRBWXzGAHq8TQ4Fs17"
+            
+        }
+    ]
+}
