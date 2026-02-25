@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Book Cleaner</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 30px; color: #333; }
+        h1 { margin-top: 0; color: #2c3e50; }
+        
+        .drop-zone {
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background-color: #ecf0f1;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 20px;
+        }
+        .drop-zone:hover, .drop-zone.dragover { background-color: #dfe6e9; border-color: #3498db; }
+        .drop-zone p { margin: 0; font-size: 1.1rem; color: #7f8c8d; }
+        
+        #file-input { display: none; }
+        
+        /* Стили для группы кнопок */
+        .action-buttons { margin-top: 15px; display: flex; gap: 10px; }
+
+        button {
+            border: none; padding: 12px 24px; font-size: 1rem; 
+            border-radius: 4px; cursor: pointer; transition: 0.2s; color: white;
+        }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        
+        #run-btn { background-color: #3498db; }
+        #run-btn:not(:disabled):hover { background-color: #2980b9; }
+
+        #download-btn { background-color: #27ae60; display: none; }
+        #download-btn:hover { background-color: #2ecc71; }
+
+        #reset-btn { background-color: #95a5a6; display: none; }
+        #reset-btn:hover { background-color: #7f8c8d; }
+
+        .file-info { font-weight: bold; margin-bottom: 15px; color: #2980b9; height: 20px;}
+        
+        .log-container {
+            margin-top: 30px; background: #fff; border: 1px solid #ddd;
+            border-radius: 5px; padding: 15px; max-height: 300px; overflow-y: auto;
+            display: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .log-container h3 { margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .log-list { margin: 0; padding-left: 20px; font-size: 0.9rem; color: #e74c3c; }
+        .log-list li { margin-bottom: 5px; }
+        .success-msg { color: #27ae60; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Очистка текста книги (.txt)</h1>
+    
+    <div class="drop-zone" id="drop-zone">
+        <p>Перетащите сюда .txt файл или нажмите для выбора</p>
+        <input type="file" id="file-input" accept=".txt">
+    </div>
+
+    <div class="file-info" id="file-info"></div>
+
+    <div class="action-buttons">
+        <button id="run-btn" disabled>🚀 Запустить очистку</button>
+        <button id="download-btn">⬇️ Скачать чистый файл</button>
+        <button id="reset-btn">🔄 Сбросить</button>
+    </div>
+
+    <div class="log-container" id="log-container">
+        <h3>Отчет об очистке:</h3>
+        <ul class="log-list" id="log-list"></ul>
+    </div>
+
+    <script src="text_cleaner.js"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админка Контента</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #f4f7f6;
+        }
+        /* Боковое меню */
+        .sidebar {
+            width: 260px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar h2 {
+            text-align: center;
+            padding: 20px 0;
+            margin: 0;
+            background-color: #1a252f;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+        .menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .menu li {
+            padding: 15px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #34495e;
+            transition: 0.3s;
+        }
+        .menu li:hover, .menu li.active {
+            background-color: #34495e;
+            border-left: 4px solid #18bc9c;
+        }
+        .content {
+            flex-grow: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>CONTENT TOOLS</h2>
+        <ul class="menu" id="menu">
+            <li class="active" onclick="loadTool(this, 'book_cleaner/index.html')">🧹 Book Cleaner</li>
+            <li onclick="loadTool(this, 'audio_generation/index.html')">🎧 Audio Gen (WIP)</li>
+            <li onclick="loadTool(this, 'book_metadata/index.html')">🏷️ Metadata (WIP)</li>
+        </ul>
+    </div>
+
+    <iframe class="content" id="tool-frame" src="book_cleaner/index.html"></iframe>
+
+    <script>
+        function loadTool(element, url) {
+            document.querySelectorAll('.menu li').forEach(li => li.classList.remove('active'));
+            element.classList.add('active');            
+            document.getElementById('tool-frame').src = url;
+        }
+    </script>
+</body>
+</html>
