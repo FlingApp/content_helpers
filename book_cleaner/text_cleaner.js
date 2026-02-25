@@ -74,7 +74,11 @@ function processText() {
 
     lines.forEach((line, index) => {
         let lineNumber = index + 1;
-        let lineChanges = [];
+        let lineChanges =[];
+
+        // СНАЧАЛА тихо удаляем Windows-символ возврата каретки (\r), 
+        // чтобы JS не принимал его за "лишний пробел в конце строки"
+        line = line.replace(/\r/g, '');
 
         // 1. Поиск и удаление скрытых символов
         if (/[\u200B\uFEFF\u200E\u200F]/.test(line)) {
@@ -84,7 +88,7 @@ function processText() {
 
         // 2. Лишние пробелы в начале и конце
         if (line.trim() !== line) {
-            line = line.replace(/\r/g, '').trim(); 
+            line = line.trim(); 
             lineChanges.push('удалены пробелы по краям');
         }
 

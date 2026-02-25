@@ -43,11 +43,35 @@
             background-color: #34495e;
             border-left: 4px solid #18bc9c;
         }
-        .content {
+        .content-area {
             flex-grow: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .content-area iframe.content {
             border: none;
             width: 100%;
             height: 100%;
+            display: block;
+        }
+        .content-area iframe.content.hidden {
+            display: none;
+        }
+        .wip-placeholder {
+            display: none;
+            flex-grow: 1;
+            align-items: center;
+            justify-content: center;
+            background: #ecf0f1;
+            color: #7f8c8d;
+            font-size: 1.5rem;
+            padding: 2rem;
+            text-align: center;
+        }
+        .wip-placeholder.visible {
+            display: flex;
         }
     </style>
 </head>
@@ -62,13 +86,32 @@
         </ul>
     </div>
 
-    <iframe class="content" id="tool-frame" src="book_cleaner/index.html"></iframe>
+    <div class="content-area">
+        <iframe class="content" id="tool-frame" src="book_cleaner/index.html"></iframe>
+        <div class="wip-placeholder" id="wip-placeholder">
+            <span>Work in progress</span>
+        </div>
+    </div>
 
     <script>
+        // Пути к реально существующим инструментам (остальные показывают WIP)
+        const AVAILABLE_TOOLS = ['book_cleaner/index.html'];
+
         function loadTool(element, url) {
             document.querySelectorAll('.menu li').forEach(li => li.classList.remove('active'));
-            element.classList.add('active');            
-            document.getElementById('tool-frame').src = url;
+            element.classList.add('active');
+
+            const frame = document.getElementById('tool-frame');
+            const wip = document.getElementById('wip-placeholder');
+
+            if (AVAILABLE_TOOLS.includes(url)) {
+                frame.src = url;
+                frame.classList.remove('hidden');
+                wip.classList.remove('visible');
+            } else {
+                frame.classList.add('hidden');
+                wip.classList.add('visible');
+            }
         }
     </script>
 </body>
