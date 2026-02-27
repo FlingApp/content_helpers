@@ -73,7 +73,7 @@ def analyze_text(text):
 def main():
     parser = argparse.ArgumentParser(description="Холостой прогон (Dry Run) для проверки файлов.")
     parser.add_argument("books_dir", type=str, help="Путь до корневой папки с книгами")
-    parser.add_argument("--limit", type=int, default=5, help="Сколько папок обрабатывать (0 - все). По умолчанию: 10")
+    parser.add_argument("--limit", type=int, default=10, help="Сколько папок обрабатывать (0 - все). По умолчанию: 10")
     parser.add_argument("--offset", type=int, default=0, help="Сколько папок пропустить. По умолчанию: 0")
     
     args = parser.parse_args()
@@ -102,8 +102,10 @@ def main():
     total_txt_files = 0
     files_with_issues = 0
     errors = 0
+    error_folders = set()  # папки, в которых были ошибки чтения
 
-    for folder in target_folders:
+    for idx, folder in enumerate(target_folders, start=1):
+        print(f"  [{idx}/{len(target_folders)}] {folder.name}")
         txt_files = list(folder.glob("*.txt"))
         
         if not txt_files:
@@ -117,6 +119,7 @@ def main():
             if text is None:
                 # Если файл так и не прочитался, логируем это и не роняем скрипт
                 errors += 1
+                error_folders.add(folder.name)
                 report_lines.append(f"[ОШИБКА] {folder.name}/{txt_file.name} — {result_info}")
                 continue
                 
@@ -135,12 +138,36 @@ def main():
                 
         report_lines.append("-" * 70)
 
-    summary = f"\nИТОГИ ПРОГОНА:\n"
-    summary += f"Проверено папок: {len(target_folders)}\n"
-    summary += f"Найдено .txt файлов: {total_txt_files}\n"
-    summary += f"Файлов с ошибками чтения: {errors}\n"
-    summary += f"Файлов, требующих очистки: {files_with_issues}"
-    
+    # Расчёт для наглядной статистики
+    folders_checked = len(target_folders)
+    files_ok = total_txt_files - errors - files_with_issues  # прочитаны, правки не нужны
+    pct_need_clean = round(100 * files_with_issues / total_txt_files, 1) if total_txt_files else 0
+    pct_ok = round(100 * files_ok / total_txt_files, 1) if total_txt_files else 0
+    pct_errors = round(100 * errors / total_txt_files, 1) if total_txt_files else 0
+
+    summary = "\n" + "=" * 50 + "\n"
+    summary += "  ИТОГИ ХОЛОСТОГО ПРОГОНА\n"
+    summary += "=" * 50 + "\n\n"
+    summary += f"  Папок проверено: {folders_checked}\n"
+    summary += f"  Найдено книг (.txt): {total_txt_files}\n\n"
+    summary += "  —— По книгам ——\n"
+    summary += f"  Требуют очистки: {files_with_issues} из {total_txt_files}  (~{pct_need_clean}%)\n"
+    summary += f"  Не требуют очистки: {files_ok} из {total_txt_files}  (~{pct_ok}%)\n"
+    if errors:
+        summary += f"  Ошибки чтения: {errors} из {total_txt_files}  (~{pct_errors}%)\n"
+        summary += f"  Папки с битыми файлами ({len(error_folders)}):\n"
+        for name in sorted(error_folders):
+            summary += f"    • {name}\n"
+        summary += "\n"
+    summary += "\n"
+    if total_txt_files and files_with_issues == total_txt_files and errors == 0:
+        summary += "  Итог: все проверенные книги нужно почистить.\n"
+    elif total_txt_files and files_ok == total_txt_files and errors == 0:
+        summary += "  Итог: все проверенные книги в порядке.\n"
+    else:
+        summary += f"  Итог: почистить нужно примерно {pct_need_clean}% книг.\n"
+    summary += "=" * 50
+
     report_lines.append(summary)
     
     report_file = "dry_run_report.txt"
