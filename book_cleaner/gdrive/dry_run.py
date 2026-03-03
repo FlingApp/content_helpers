@@ -83,7 +83,10 @@ def main():
         print(f"❌ Ошибка: Папка '{args.books_dir}' не найдена!")
         return
 
-    all_folders = sorted([d for d in base_path.iterdir() if d.is_dir()])
+    all_folders = sorted(
+        [d for d in base_path.iterdir() if d.is_dir()],
+        key=lambda d: d.name.lower()
+    )
     total_folders = len(all_folders)
     
     print(f"📁 Всего найдено папок: {total_folders}")

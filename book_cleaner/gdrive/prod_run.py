@@ -85,6 +85,8 @@ def clean_text_content(text):
     Возвращает очищенный текст.
     """
     text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # Схлопываем серии из 3+ переносов в 2 (одна пустая строка) — так лишние пустые строки убираются до разбора
+    text = re.sub(r'\n{3,}', '\n\n', text)
     lines = text.split('\n')
     cleaned_lines = []
     empty_line_count = 0
@@ -100,11 +102,15 @@ def clean_text_content(text):
         # 3. Убираем двойные пробелы
         line = DOUBLE_SPACES_RE.sub(' ', line)
 
-        # 4. Логика абзацев (макс 1 пустая строка подряд)
+        # 4. Строки только из пробелов считаем пустыми (на случай нестандартных пробельных символов)
+        if not line or line.strip() == '':
+            line = ''
+
+        # 5. Логика абзацев: макс. 1 пустая строка подряд
         if line == '':
             empty_line_count += 1
             if empty_line_count > 1:
-                continue # Пропускаем лишний перенос
+                continue  # Пропускаем лишний перенос
         else:
             empty_line_count = 0
 
@@ -131,7 +137,10 @@ def main():
     backup_root.mkdir(exist_ok=True)
     print(f"📦 Бэкапы будут сохраняться в: {backup_root.resolve()}")
 
-    all_folders = sorted([d for d in base_path.iterdir() if d.is_dir()])
+    all_folders = sorted(
+        [d for d in base_path.iterdir() if d.is_dir()],
+        key=lambda d: d.name.lower()
+    )
     
     start_idx = args.offset
     end_idx = len(all_folders) if args.limit == 0 else args.offset + args.limit
@@ -155,6 +164,7 @@ def main():
             report_lines.append("-" * 70)
             continue
 
+        folder_has_report_line = False
         for txt_file in txt_files:
             stats["processed"] += 1
             
@@ -163,6 +173,7 @@ def main():
             if original_text is None:
                 stats["errors"] += 1
                 report_lines.append(f"[ОШИБКА] {folder.name}/{txt_file.name} — {encoding}")
+                folder_has_report_line = True
                 continue
 
             # 2. Чистим
@@ -182,6 +193,7 @@ def main():
             if not backup_ok:
                 stats["errors"] += 1
                 report_lines.append(f"[ОШИБКА БЭКАПА] {folder.name}/{txt_file.name} — Не удалось создать копию: {backup_msg}")
+                folder_has_report_line = True
                 continue # Не перезаписываем без бэкапа!
 
             # 5. Перезаписываем
@@ -191,9 +203,15 @@ def main():
                 report_lines.append(f"[ИСПРАВЛЕН] {folder.name}/{txt_file.name}")
                 report_lines.append(f"    - Кодировка: {encoding} -> UTF-8")
                 report_lines.append(f"    - Бэкап: {backup_msg}")
+                folder_has_report_line = True
             else:
                 stats["errors"] += 1
                 report_lines.append(f"[ОШИБКА ЗАПИСИ] {folder.name}/{txt_file.name} — {write_msg}")
+                folder_has_report_line = True
+
+        if not folder_has_report_line:
+            n = len(txt_files)
+            report_lines.append(f"[БЕЗ ИЗМЕНЕНИЙ] {folder.name}/ — {n} файл(ов), правки не требовались")
 
         report_lines.append("-" * 70)
 
