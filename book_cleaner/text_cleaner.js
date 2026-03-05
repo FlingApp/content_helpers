@@ -53,7 +53,11 @@ function handleFileSelection(file) {
     logContainer.style.display = 'none';
 }
 
-// --- Логика очистки текста ---
+// --- Логика очистки текста (синхронизирована с prod_run.py) ---
+
+// Скрытые символы и регуляры — как в prod_run.py
+const HIDDEN_CHARS_RE = /[\u200B\uFEFF\u200E\u200F]/g;
+const DOUBLE_SPACES_RE = / {2,}/g;
 
 runBtn.addEventListener('click', () => {
     const reader = new FileReader();
@@ -68,42 +72,51 @@ runBtn.addEventListener('click', () => {
 
 function processText() {
     fileLog = [];
-    const lines = originalText.split('\n');
+    // 1. Нормализация переносов и схлопывание 3+ переносов в 2 (как в prod_run.py)
+    let text = originalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    text = text.replace(/\n{3,}/g, '\n\n');
+    const lines = text.split('\n');
     let resultLines = [];
     let emptyLineCount = 0;
 
     lines.forEach((line, index) => {
         let lineNumber = index + 1;
-        let lineChanges =[];
+        let lineChanges = [];
 
-        // СНАЧАЛА тихо удаляем Windows-символ возврата каретки (\r), 
-        // чтобы JS не принимал его за "лишний пробел в конце строки"
+        // 2. Удаляем \r (на случай если остались внутри строки)
         line = line.replace(/\r/g, '');
 
-        // 1. Поиск и удаление скрытых символов
-        if (/[\u200B\uFEFF\u200E\u200F]/.test(line)) {
-            line = line.replace(/[\u200B\uFEFF\u200E\u200F]/g, '');
+        // 3. Удаление скрытых символов (\u200B \uFEFF \u200E \u200F)
+        HIDDEN_CHARS_RE.lastIndex = 0;
+        if (HIDDEN_CHARS_RE.test(line)) {
+            line = line.replace(HIDDEN_CHARS_RE, '');
             lineChanges.push('удален скрытый символ');
         }
 
-        // 2. Лишние пробелы в начале и конце
+        // 4. Тримминг
         if (line.trim() !== line) {
-            line = line.trim(); 
+            line = line.trim();
             lineChanges.push('удалены пробелы по краям');
         }
 
-        // 3. Двойные пробелы между словами
-        if (/ {2,}/.test(line)) {
-            line = line.replace(/ {2,}/g, ' ');
+        // 5. Двойные пробелы между словами
+        DOUBLE_SPACES_RE.lastIndex = 0;
+        if (DOUBLE_SPACES_RE.test(line)) {
+            line = line.replace(DOUBLE_SPACES_RE, ' ');
             lineChanges.push('двойные пробелы заменены на один');
         }
 
-        // 4. Логика множественных переносов
+        // 6. Строки только из пробелов считаем пустыми (как в prod_run.py)
+        if (!line || line.trim() === '') {
+            line = '';
+        }
+
+        // 7. Логика абзацев: макс. 1 пустая строка подряд
         if (line === '') {
             emptyLineCount++;
             if (emptyLineCount > 1) {
                 fileLog.push(`Строка ${lineNumber}: удален лишний перенос строки`);
-                return; // Пропускаем добавление этой строки
+                return;
             }
         } else {
             emptyLineCount = 0;
