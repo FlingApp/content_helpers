@@ -81,8 +81,9 @@
         <h2>CONTENT TOOLS</h2>
         <ul class="menu" id="menu">
             <li class="active" onclick="loadTool(this, 'book_cleaner/index.html')">🧹 Book Cleaner</li>
+            <li onclick="loadTool(this, 'book_metadata/index.html')">🏷️ Metadata Prompt</li>
+            <li onclick="loadTool(this, 'audio_check/index.html')">🔊 Audio Check (WIP)</li>
             <li onclick="loadTool(this, 'audio_generation/index.html')">🎧 Audio Gen (WIP)</li>
-            <li onclick="loadTool(this, 'book_metadata/index.html')">🏷️ Metadata (WIP)</li>
         </ul>
     </div>
 
@@ -95,7 +96,11 @@
 
     <script>
         // Пути к реально существующим инструментам (остальные показывают WIP)
-        const AVAILABLE_TOOLS = ['book_cleaner/index.html'];
+        const AVAILABLE_TOOLS = [
+            'book_cleaner/index.html',
+            'audio_check/index.html',
+            'book_metadata/index.html',
+        ];
 
         function loadTool(element, url) {
             document.querySelectorAll('.menu li').forEach(li => li.classList.remove('active'));

@@ -1,3 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Metadata — Init Prompt</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7f6;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .toolbar {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn-copy {
+            padding: 10px 20px;
+            background: #18bc9c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+        .btn-copy:hover {
+            background: #15a589;
+        }
+        .btn-copy.copied {
+            background: #27ae60;
+        }
+        .prompt-textarea {
+            width: 100%;
+            min-height: 60vh;
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: #18bc9c;
+            box-shadow: 0 0 0 2px rgba(24, 188, 156, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <h1>Init prompt (metadata)</h1>
+    <div class="toolbar">
+        <button type="button" class="btn-copy" id="btn-copy">Скопировать</button>
+    </div>
+    
+    <textarea class="prompt-textarea" id="prompt-text" spellcheck="false" placeholder="Текст промпта..."></textarea>
+
+    <script>
+
+        const MY_PROMPT_TEXT = `
 Please read the attached text and write:
 
 1 Linear sequential presentation of the plot (synopsis)
@@ -314,5 +384,47 @@ tag_finale (single-select)
 - HEA
 - cliffhanger
 
+`;
 
---- --- --- --- ---
+        (function () {
+
+            var btn = document.getElementById('btn-copy');
+            var textarea = document.getElementById('prompt-text');
+
+            // Вставляем текст при загрузке
+            textarea.value = MY_PROMPT_TEXT.trim();
+
+            // Логика кнопки копирования
+            btn.addEventListener('click', function () {
+                var text = textarea.value;
+                
+                // Функция для визуального эффекта кнопки
+                function showSuccess() {
+                    btn.textContent = 'Скопировано!';
+                    btn.classList.add('copied');
+                    setTimeout(function () {
+                        btn.textContent = 'Скопировать';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                }
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text)
+                        .then(showSuccess)
+                        .catch(function() {
+                            // Если API недоступно, пробуем старый метод
+                            textarea.select();
+                            document.execCommand('copy');
+                            showSuccess();
+                        });
+                } else {
+                    // Старый метод для старых браузеров
+                    textarea.select();
+                    document.execCommand('copy');
+                    showSuccess();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -5,5 +5,5 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 echo "🔄 Синхронизация..."
-git status; git fetch; git pull; 
+git fetch; git pull; 
 echo "✅ Синхронизация завершена"
