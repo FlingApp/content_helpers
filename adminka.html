@@ -50,13 +50,21 @@
             flex-direction: column;
             overflow: hidden;
         }
-        .content-area iframe.content {
-            border: none;
+        .frames-wrapper {
+            flex-grow: 1;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .frames-wrapper iframe.content {
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
+            border: none;
             display: block;
         }
-        .content-area iframe.content.hidden {
+        .frames-wrapper iframe.content.hidden {
             display: none;
         }
         .wip-placeholder {
@@ -73,6 +81,56 @@
         .wip-placeholder.visible {
             display: flex;
         }
+        /* Модальное окно подтверждения перезагрузки */
+        .reload-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        .reload-overlay.visible {
+            display: flex;
+        }
+        .reload-dialog {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            max-width: 360px;
+        }
+        .reload-dialog p {
+            margin: 0 0 1.25rem 0;
+            color: #2c3e50;
+        }
+        .reload-dialog .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .reload-dialog button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .reload-dialog .btn-cancel {
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+        .reload-dialog .btn-cancel:hover {
+            background: #bdc3c7;
+        }
+        .reload-dialog .btn-reload {
+            background: #18bc9c;
+            color: white;
+        }
+        .reload-dialog .btn-reload:hover {
+            background: #15a589;
+        }
     </style>
 </head>
 <body>
@@ -88,13 +146,56 @@
     </div>
 
     <div class="content-area">
-        <iframe class="content" id="tool-frame" src="book_cleaner/index.html"></iframe>
+        <div id="frames-wrapper" class="frames-wrapper">
+            <iframe class="content" id="tool-frame" data-src="book_cleaner/index.html" src="book_cleaner/index.html"></iframe>
+        </div>
         <div class="wip-placeholder" id="wip-placeholder">
             <span>Work in progress</span>
         </div>
     </div>
 
+    <div class="reload-overlay" id="reload-overlay" aria-hidden="true">
+        <div class="reload-dialog">
+            <p>Вы уверены, что хотите перезагрузить страницу? Все данные пропадут.</p>
+            <div class="buttons">
+                <button type="button" class="btn-cancel" id="reload-cancel">Отмена</button>
+                <button type="button" class="btn-reload" id="reload-confirm">Перезагрузить</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Перехват F5 и Cmd+R — своё окно, индикатор браузера не запускается (capture: true — ловим и когда фокус в iframe)
+        window.addEventListener('keydown', function (e) {
+            if (e.key === 'F5' || (e.key === 'r' && (e.metaKey || e.ctrlKey))) {
+                e.preventDefault();
+                e.stopPropagation();
+                document.getElementById('reload-overlay').classList.add('visible');
+                document.getElementById('reload-overlay').setAttribute('aria-hidden', 'false');
+            }
+        }, true);
+
+        document.getElementById('reload-cancel').addEventListener('click', function () {
+            document.getElementById('reload-overlay').classList.remove('visible');
+            document.getElementById('reload-overlay').setAttribute('aria-hidden', 'true');
+        });
+
+        document.getElementById('reload-confirm').addEventListener('click', function () {
+            sessionStorage.setItem('reload_confirmed', '1');
+            window.location.reload();
+        });
+
+        // Закрытие вкладки/уход — предупреждение (при подтверждённом F5 не показываем)
+        window.addEventListener('beforeunload', function (e) {
+            if (sessionStorage.getItem('reload_confirmed')) return;
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        });
+
+        // Сбрасываем флаг после загрузки, чтобы при следующем закрытии вкладки снова спросить
+        sessionStorage.removeItem('reload_confirmed');
+
         // Пути к реально существующим инструментам (остальные показывают WIP)
         const AVAILABLE_TOOLS = [
             'book_cleaner/index.html',
@@ -102,21 +203,42 @@
             'book_metadata/index.html',
         ];
 
+        const framesWrapper = document.getElementById('frames-wrapper');
+        const wipPlaceholder = document.getElementById('wip-placeholder');
+        /** @type {Record<string, HTMLIFrameElement>} */
+        const framesCache = {};
+
+        // Регистрируем начальный iframe в кэше
+        (function initCache() {
+            const initialFrame = document.getElementById('tool-frame');
+            const url = initialFrame.getAttribute('data-src');
+            if (url) framesCache[url] = initialFrame;
+        })();
+
         function loadTool(element, url) {
             document.querySelectorAll('.menu li').forEach(li => li.classList.remove('active'));
             element.classList.add('active');
 
-            const frame = document.getElementById('tool-frame');
-            const wip = document.getElementById('wip-placeholder');
-
-            if (AVAILABLE_TOOLS.includes(url)) {
-                frame.src = url;
-                frame.classList.remove('hidden');
-                wip.classList.remove('visible');
-            } else {
-                frame.classList.add('hidden');
-                wip.classList.add('visible');
+            if (!AVAILABLE_TOOLS.includes(url)) {
+                Object.values(framesCache).forEach(f => f.classList.add('hidden'));
+                wipPlaceholder.classList.add('visible');
+                return;
             }
+
+            wipPlaceholder.classList.remove('visible');
+
+            let frame = framesCache[url];
+            if (!frame) {
+                frame = document.createElement('iframe');
+                frame.className = 'content';
+                frame.setAttribute('data-src', url);
+                frame.src = url;
+                framesWrapper.appendChild(frame);
+                framesCache[url] = frame;
+            }
+
+            Object.values(framesCache).forEach(f => f.classList.add('hidden'));
+            frame.classList.remove('hidden');
         }
     </script>
 </body>
