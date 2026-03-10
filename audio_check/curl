@@ -1,0 +1,37 @@
+#!/bin/bash
+set -e -E
+
+GEMINI_API_KEY="$GEMINI_API_KEY"
+MODEL_ID="gemini-2.5-pro"
+GENERATE_CONTENT_API="streamGenerateContent"
+
+cat << EOF > request.json
+{
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "привет! можешь найти звуковые дефекты в этом аудио файле? например скрежет/ии-артефакты/прыгающую громкость/голос из-под воды и тд. напиши ответ списком timestamp: defect"
+          },
+          {
+            "inlineData": {
+              "mimeType": "audio/mpeg",
+              "data": "<Drive file: 12oixGjM6DKjPa9eZJ8LE7X9if3HeQ75b>"
+            }
+          },
+        ]
+      },
+    ],
+    "generationConfig": {
+      "thinkingConfig": {
+        "thinkingBudget": -1,
+      },
+    },
+}
+EOF
+
+curl \
+-X POST \
+-H "Content-Type: application/json" \
+"https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:${GENERATE_CONTENT_API}?key=${GEMINI_API_KEY}" -d '@request.json'

@@ -1,4 +1,5 @@
 *.DS_Store
 *_report.txt
 *clean_report_*.txt
+*chapter_check_report.txt
 *backups_*

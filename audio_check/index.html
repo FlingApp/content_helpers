@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка аудио — выбор папки</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1b26;
+            color: #c0caf5;
+            padding: 24px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #7aa2f7;
+            margin: 0 0 24px 0;
+        }
+        .open-folder-wrap {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .current-folder {
+            margin-bottom: 16px;
+            padding: 10px 14px;
+            background: #24283b;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #a9b1d6;
+            display: none;
+        }
+        .current-folder.is-set {
+            display: block;
+        }
+        .current-folder strong {
+            color: #7aa2f7;
+        }
+        /* Скрытый input для выбора папки */
+        .folder-input {
+            display: none;
+        }
+        .btn-open-folder {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: #7aa2f7;
+            color: #1a1b26;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.05s;
+        }
+        .btn-open-folder:hover {
+            background: #89b4fa;
+        }
+        .btn-open-folder:active {
+            transform: scale(0.98);
+        }
+        .file-list-section {
+            background: #24283b;
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 120px;
+        }
+        .file-list-section h2 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #a9b1d6;
+            margin: 0 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .file-list-section h2:not(:first-child) {
+            margin-top: 20px;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .file-list li {
+            padding: 6px 10px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 13px;
+            color: #c0caf5;
+            border-radius: 6px;
+        }
+        .file-list li:nth-child(odd) {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .file-list.empty {
+            color: #565f89;
+            font-style: italic;
+        }
+        .empty-state {
+            color: #565f89;
+            font-style: italic;
+            padding: 12px 0;
+        }
+        .settings-block {
+            background: #24283b;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .settings-block label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #a9b1d6;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .settings-block input[type="text"],
+        .settings-block select,
+        .settings-block textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: #1a1b26;
+            border: 1px solid #414868;
+            border-radius: 8px;
+            color: #c0caf5;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        .settings-block input[type="text"]:focus,
+        .settings-block select:focus,
+        .settings-block textarea:focus {
+            outline: none;
+            border-color: #7aa2f7;
+        }
+        .settings-block input[type="text"].field-error,
+        .settings-block textarea.field-error {
+            border-color: #f7768e;
+            box-shadow: 0 0 0 2px rgba(247, 118, 142, 0.25);
+        }
+        .settings-block .field-row {
+            margin-bottom: 16px;
+        }
+        .settings-block .field-row:last-child {
+            margin-bottom: 0;
+        }
+        .settings-block textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .btn-call-gemini {
+            padding: 12px 20px;
+            background: #7aa2f7;
+            color: #1a1b26;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .btn-call-gemini:hover {
+            background: #89b4fa;
+        }
+        .btn-call-gemini:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .gemini-result {
+            padding: 12px;
+            background: #1a1b26;
+            border: 1px solid #414868;
+            border-radius: 8px;
+            color: #c0caf5;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .gemini-result.error {
+            color: #f7768e;
+        }
+        .mp3-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .mp3-toolbar button {
+            padding: 8px 14px;
+            background: #414868;
+            color: #c0caf5;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .mp3-toolbar button:hover {
+            background: #565f89;
+        }
+        .mp3-toolbar .selected-count {
+            font-size: 0.9rem;
+            color: #7aa2f7;
+            font-weight: 500;
+        }
+        .mp3-toolbar .random-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mp3-toolbar input[type="number"] {
+            width: 60px;
+            padding: 6px 8px;
+            background: #1a1b26;
+            border: 1px solid #414868;
+            border-radius: 6px;
+            color: #c0caf5;
+            font-size: 0.85rem;
+        }
+        .file-list li label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .file-list li input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #7aa2f7;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Проверка аудио</h1>
+
+        <div class="settings-block">
+            <div class="field-row">
+                <label for="model-select">MODEL</label>
+                <select id="model-select">
+                    <option value="gemini-3-pro-preview">gemini-3-pro-preview</option>
+                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                </select>
+            </div>
+            <div class="field-row">
+                <label for="gemini-api-key">GEMINI_API_KEY</label>
+                <input type="text" id="gemini-api-key" placeholder="Вставьте ваш API-ключ" autocomplete="off">
+            </div>
+            <div class="field-row">
+                <label for="prompt-text">PROMPT</label>
+                <textarea id="prompt-text" placeholder="Введите промпт для модели"></textarea>
+            </div>
+            <div class="field-row result-row" id="gemini-result-wrap" style="display: none;">
+                <label>Ответ</label>
+                <div id="gemini-result" class="gemini-result"></div>
+            </div>
+        </div>
+
+        <div class="open-folder-wrap">
+            <input type="file" class="folder-input" id="folder-input" webkitdirectory directory multiple>
+            <button type="button" class="btn-open-folder" id="btn-open-folder">
+                Открыть папку
+            </button>
+            <button type="button" id="btn-call-gemini" class="btn-call-gemini" disabled>Запустить проверки</button>
+        </div>
+
+        <p class="current-folder" id="current-folder">Папка: <strong id="current-folder-name"></strong></p>
+
+        <div class="file-list-section">
+            <div id="file-list-container">
+                <p class="empty-state" id="empty-state">Выберите папку, чтобы увидеть список файлов.</p>
+                <h2 id="heading-mp3" style="display: none;">MP3</h2>
+                <div id="mp3-toolbar" class="mp3-toolbar" style="display: none;"></div>
+                <ul class="file-list" id="list-mp3"></ul>
+                <h2 id="heading-other" style="display: none;">Остальные файлы</h2>
+                <ul class="file-list" id="list-other"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    window.GDRIVE_ITEM_IDS = {};
+    window.GDRIVE_ITEM_IDS_BY_BASENAME = {};
+    </script>
+    <script src="drive_files_list.js"></script>
+    <script src="audio_check.js"></script>
+    <script>
+        (function () {
+            const folderInput = document.getElementById('folder-input');
+            const btnOpenFolder = document.getElementById('btn-open-folder');
+            const emptyState = document.getElementById('empty-state');
+            const headingMp3 = document.getElementById('heading-mp3');
+            const headingOther = document.getElementById('heading-other');
+            const listMp3 = document.getElementById('list-mp3');
+            const listOther = document.getElementById('list-other');
+            const currentFolderEl = document.getElementById('current-folder');
+            const currentFolderNameEl = document.getElementById('current-folder-name');
+            const mp3Toolbar = document.getElementById('mp3-toolbar');
+            const btnCallGemini = document.getElementById('btn-call-gemini');
+            const geminiResultWrap = document.getElementById('gemini-result-wrap');
+            const geminiResult = document.getElementById('gemini-result');
+
+            /** Текущий список MP3 File объектов (после выбора папки). */
+            let mp3Files = [];
+            /** Object URLs, выданные для выбранных файлов (чтобы revoke при смене выбора). */
+            let issuedUrls = [];
+
+            btnOpenFolder.addEventListener('click', function () {
+                folderInput.click();
+            });
+
+            function revokeSelectedUrls() {
+                issuedUrls.forEach(function (url) { URL.revokeObjectURL(url); });
+                issuedUrls = [];
+            }
+
+            function updateSelectedLinks() {
+                revokeSelectedUrls();
+                const checkboxes = listMp3.querySelectorAll('input[type="checkbox"]');
+                const selected = [];
+                checkboxes.forEach(function (cb, i) {
+                    if (cb.checked && mp3Files[i]) {
+                        const url = URL.createObjectURL(mp3Files[i]);
+                        issuedUrls.push(url);
+                        selected.push(url);
+                    }
+                });
+                window.selectedAudioLinks = selected;
+                updateSelectedCount();
+            }
+
+            function updateSelectedCount() {
+                const el = document.getElementById('selected-count');
+                if (el) el.textContent = window.selectedAudioLinks.length;
+                updateRunButtonState();
+            }
+
+            function updateRunButtonState() {
+                if (!btnCallGemini) return;
+                if (btnCallGemini.textContent !== 'Запустить проверки') return;
+                btnCallGemini.disabled = window.selectedAudioLinks.length === 0;
+            }
+
+            function buildMp3Toolbar() {
+                mp3Toolbar.innerHTML = '';
+                mp3Toolbar.style.display = mp3Files.length ? 'flex' : 'none';
+
+                const countLabel = document.createElement('span');
+                countLabel.className = 'selected-count';
+                countLabel.innerHTML = 'Выбрано: <span id="selected-count">0</span>';
+
+                const selectAllBtn = document.createElement('button');
+                selectAllBtn.type = 'button';
+                selectAllBtn.textContent = 'Выбрать все';
+                selectAllBtn.addEventListener('click', function () {
+                    listMp3.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = true; });
+                    updateSelectedLinks();
+                });
+
+                const unselectAllBtn = document.createElement('button');
+                unselectAllBtn.type = 'button';
+                unselectAllBtn.textContent = 'Снять все';
+                unselectAllBtn.addEventListener('click', function () {
+                    listMp3.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+                    updateSelectedLinks();
+                });
+
+                mp3Toolbar.appendChild(selectAllBtn);
+                mp3Toolbar.appendChild(unselectAllBtn);
+                mp3Toolbar.appendChild(countLabel);
+            }
+
+            folderInput.addEventListener('change', function (e) {
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+
+                revokeSelectedUrls();
+                window.selectedAudioLinks = [];
+
+                const mp3 = [];
+                const other = [];
+                for (let i = 0; i < files.length; i++) {
+                    const f = files[i];
+                    if (f.name.toLowerCase().endsWith('.mp3')) {
+                        mp3.push(f);
+                    } else {
+                        other.push(f);
+                    }
+                }
+                mp3.sort((a, b) => naturalCompare(a.name, b.name));
+                other.sort((a, b) => naturalCompare(a.name, b.name));
+
+                mp3Files = mp3;
+
+                const folderName = files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : 'Папка';
+                currentFolderNameEl.textContent = folderName;
+                currentFolderEl.classList.add('is-set');
+
+                emptyState.style.display = 'none';
+                headingMp3.style.display = mp3.length ? 'block' : 'none';
+                headingOther.style.display = other.length ? 'block' : 'none';
+
+                listMp3.innerHTML = mp3.map(function (f, idx) {
+                    return '<li><label><input type="checkbox" data-mp3-index="' + idx + '">' + escapeHtml(f.name) + '</label></li>';
+                }).join('');
+
+                listMp3.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+                    cb.addEventListener('change', updateSelectedLinks);
+                });
+
+                buildMp3Toolbar();
+                updateSelectedCount();
+
+                listOther.innerHTML = other.map(function (f) {
+                    return '<li>' + escapeHtml(f.name) + '</li>';
+                }).join('');
+
+                folderInput.value = '';
+            });
+
+            function escapeHtml(s) {
+                const div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            }
+
+            /** Сортировка по имени: числа по значению (1, 2, 10, 21), не по строкам (1, 10, 11, 2). */
+            function naturalCompare(a, b) {
+                const re = /(\d+)|(\D+)/g;
+                const partsA = a.match(re) || [];
+                const partsB = b.match(re) || [];
+                const len = Math.min(partsA.length, partsB.length);
+                for (let i = 0; i < len; i++) {
+                    const x = partsA[i];
+                    const y = partsB[i];
+                    const numX = parseInt(x, 10);
+                    const numY = parseInt(y, 10);
+                    if (!isNaN(numX) && !isNaN(numY)) {
+                        if (numX !== numY) return numX - numY;
+                    } else {
+                        const cmp = x.localeCompare(y, undefined, { numeric: true });
+                        if (cmp !== 0) return cmp;
+                    }
+                }
+                return partsA.length - partsB.length;
+            }
+
+            if (btnCallGemini && window.callGemini) {
+                const apiKeyInput = document.getElementById('gemini-api-key');
+                const promptTextarea = document.getElementById('prompt-text');
+
+                function clearFieldErrors() {
+                    if (apiKeyInput) apiKeyInput.classList.remove('field-error');
+                    if (promptTextarea) promptTextarea.classList.remove('field-error');
+                }
+
+                function resetRunButtonToReady() {
+                    if (btnCallGemini) {
+                        btnCallGemini.textContent = 'Запустить проверки';
+                        updateRunButtonState();
+                    }
+                }
+
+                if (apiKeyInput) apiKeyInput.addEventListener('input', function () { clearFieldErrors(); resetRunButtonToReady(); });
+                if (promptTextarea) promptTextarea.addEventListener('input', function () { clearFieldErrors(); resetRunButtonToReady(); });
+
+                btnCallGemini.addEventListener('click', function () {
+                    if (btnCallGemini.disabled) return;
+
+                    const modelId = (document.getElementById('model-select') && document.getElementById('model-select').value) || 'gemini-2.5-pro';
+                    const apiKey = (apiKeyInput && apiKeyInput.value) || '';
+                    const prompt = (promptTextarea && promptTextarea.value) || '';
+
+                    clearFieldErrors();
+
+                    if (!apiKey.trim() && !prompt.trim()) {
+                        if (apiKeyInput) apiKeyInput.classList.add('field-error');
+                        if (promptTextarea) promptTextarea.classList.add('field-error');
+                        geminiResult.textContent = 'Ошибка: введите GEMINI_API_KEY и PROMPT';
+                        geminiResult.className = 'gemini-result error';
+                        geminiResultWrap.style.display = 'block';
+                        geminiResultWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        return;
+                    }
+                    if (!apiKey.trim()) {
+                        if (apiKeyInput) apiKeyInput.classList.add('field-error');
+                        geminiResult.textContent = 'Ошибка: введите GEMINI_API_KEY';
+                        geminiResult.className = 'gemini-result error';
+                        geminiResultWrap.style.display = 'block';
+                        geminiResultWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        return;
+                    }
+                    if (!prompt.trim()) {
+                        if (promptTextarea) promptTextarea.classList.add('field-error');
+                        geminiResult.textContent = 'Ошибка: введите PROMPT';
+                        geminiResult.className = 'gemini-result error';
+                        geminiResultWrap.style.display = 'block';
+                        geminiResultWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        return;
+                    }
+
+                    btnCallGemini.disabled = true;
+                    btnCallGemini.textContent = 'Отправка…';
+                    geminiResult.textContent = 'Запрос отправлен…';
+                    geminiResult.className = 'gemini-result';
+                    geminiResultWrap.style.display = 'block';
+
+                    window.callGemini({ modelId: modelId, apiKey: apiKey.trim(), prompt: prompt.trim() })
+                        .then(function (out) {
+                            if (out.error) {
+                                geminiResult.textContent = 'Ошибка: ' + out.error;
+                                geminiResult.className = 'gemini-result error';
+                                btnCallGemini.textContent = 'Ошибка';
+                                btnCallGemini.disabled = false;
+                            } else {
+                                geminiResult.textContent = out.text || '(пустой ответ)';
+                                geminiResult.className = 'gemini-result';
+                                btnCallGemini.textContent = 'Отправлено';
+                            }
+                        })
+                        .catch(function (err) {
+                            var msg = err && err.message ? err.message : String(err);
+                            geminiResult.textContent = 'Ошибка: ' + msg;
+                            geminiResult.className = 'gemini-result error';
+                            btnCallGemini.textContent = 'Ошибка';
+                            btnCallGemini.disabled = false;
+                        });
+                });
+            }
+        })();
+    </script>
+</body>
+</html>
