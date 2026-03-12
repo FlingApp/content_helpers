@@ -65,12 +65,17 @@
 
         var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modelId) + ':generateContent?key=' + encodeURIComponent(apiKey);
 
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function () { controller.abort(); }, 120000); // 2 минуты для аудио
+
         return fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: controller.signal
         })
             .then(function (res) {
+                clearTimeout(timeoutId);
                 if (!res.ok) {
                     return res.json().then(function (err) {
                         var msg = (err.error && err.error.message) ? err.error.message : (res.status + ' ' + res.statusText);
@@ -93,11 +98,139 @@
                 return { text: text };
             })
             .catch(function (err) {
+                clearTimeout(timeoutId);
                 var msg = err && err.message ? err.message : String(err);
                 if (msg === 'Failed to fetch' || err instanceof TypeError) {
-                    msg = 'Нет связи с сервером. Проверьте интернет и CORS.';
+                    msg = 'Нет связи с сервером. Откройте страницу по адресу http://localhost (не через file://), проверьте интернет и консоль (F12).';
+                } else if (err.name === 'AbortError') {
+                    msg = 'Таймаут запроса (2 мин). Попробуйте файл короче или повторите позже.';
                 }
                 return { error: msg };
             });
+    };
+
+    /** Максимум ошибок подряд — после этого проверки останавливаются. */
+    var CONSECUTIVE_ERROR_LIMIT = 3;
+
+    /**
+     * Отчёт по проверкам: массив { fileName, success, error?, text?, stage? }.
+     * Заполняется в runChecks, используется для отображения и скачивания.
+     */
+    window.checkReport = [];
+
+    /**
+     * Формирует текст общего отчёта для скачивания (.txt).
+     * @returns {string}
+     */
+    window.getCheckReportText = function () {
+        var report = window.checkReport;
+        if (!report || report.length === 0) return 'Нет данных отчёта.\n';
+
+        var lines = [
+            '=== Отчёт проверки аудио ===',
+            'Дата: ' + new Date().toLocaleString('ru-RU'),
+            'Всего записей: ' + report.length,
+            ''
+        ];
+
+        report.forEach(function (entry, idx) {
+            lines.push('--- ' + (idx + 1) + '. ' + (entry.fileName || 'файл') + ' ---');
+            lines.push('Статус: ' + (entry.success ? 'OK' : 'Ошибка'));
+            if (entry.stage) lines.push('Этап: ' + entry.stage);
+            if (entry.error) lines.push('Ошибка: ' + entry.error);
+            if (entry.text) lines.push('Ответ Gemini:\n' + entry.text);
+            lines.push('');
+        });
+
+        return lines.join('\n');
+    };
+
+    /**
+     * Скачивает общий отчёт как .txt файл.
+     */
+    window.downloadCheckReport = function () {
+        var text = window.getCheckReportText();
+        var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'audio_check_report_' + new Date().toISOString().slice(0, 10) + '.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    /**
+     * Запускает проверку всех выбранных аудиофайлов через Gemini: загрузка → промпт → удаление с серверов.
+     * Логирует каждый запрос и ответ в window.checkReport. Останавливается после CONSECUTIVE_ERROR_LIMIT ошибок подряд.
+     * @param {string} apiKey - GEMINI_API_KEY
+     * @param {string} modelId - ID модели (например "gemini-2.5-pro")
+     * @param {string} prompt - текст промпта для проверки аудио
+     * @param {Object} [opts] - опции
+     * @param {Array<string>} [opts.fileNames] - имена файлов по порядку (как в selectedAudioLinks)
+     * @param {function(Object)} [opts.onProgress] - callback после каждого файла: { index, total, entry }
+     */
+    window.runChecks = async function (apiKey, modelId, prompt, opts) {
+        var links = window.selectedAudioLinks;
+        var fileNames = (opts && opts.fileNames) || [];
+        var onProgress = (opts && opts.onProgress) || function () {};
+
+        window.checkReport = [];
+        var consecutiveErrors = 0;
+
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            var fileName = (fileNames[i] !== undefined ? fileNames[i] : 'file_' + (i + 1));
+            console.log('Проверяем файл ' + (i + 1) + ' из ' + links.length + ': ' + fileName);
+
+            var uploadResult = await window.uploadToGemini(link, apiKey, 'audio/mp3');
+            if (uploadResult.error) {
+                var uploadEntry = { fileName: fileName, success: false, error: uploadResult.error, stage: 'upload' };
+                window.checkReport.push(uploadEntry);
+                consecutiveErrors++;
+                onProgress({ index: i, total: links.length, entry: uploadEntry });
+                console.error('Ошибка загрузки:', uploadResult.error);
+                if (consecutiveErrors >= CONSECUTIVE_ERROR_LIMIT) {
+                    console.error('Остановка: ' + CONSECUTIVE_ERROR_LIMIT + ' ошибки подряд.');
+                    break;
+                }
+                continue;
+            }
+
+            var filePart = {
+                fileData: {
+                    fileUri: uploadResult.fileUri,
+                    mimeType: uploadResult.mimeType
+                }
+            };
+
+            var geminiResult = await window.callGemini({
+                modelId: modelId,
+                apiKey: apiKey,
+                prompt: prompt,
+                extraParts: [filePart]
+            });
+
+            await window.deleteFromGemini(uploadResult.name, apiKey);
+
+            if (geminiResult.error) {
+                var errEntry = { fileName: fileName, success: false, error: geminiResult.error, stage: 'gemini' };
+                window.checkReport.push(errEntry);
+                consecutiveErrors++;
+                onProgress({ index: i, total: links.length, entry: errEntry });
+                console.error('Ошибка проверки:', geminiResult.error);
+                if (consecutiveErrors >= CONSECUTIVE_ERROR_LIMIT) {
+                    console.error('Остановка: ' + CONSECUTIVE_ERROR_LIMIT + ' ошибки подряд.');
+                    break;
+                }
+            } else {
+                consecutiveErrors = 0;
+                var okEntry = { fileName: fileName, success: true, text: geminiResult.text || '' };
+                window.checkReport.push(okEntry);
+                onProgress({ index: i, total: links.length, entry: okEntry });
+                console.log('Результат проверки:', geminiResult.text);
+            }
+        }
+
+        console.log('Проверка завершена. Обработано: ' + window.checkReport.length + ' из ' + links.length);
     };
 })();

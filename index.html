@@ -165,15 +165,32 @@
     </div>
 
     <script>
-        // Перехват F5 и Cmd+R — своё окно, индикатор браузера не запускается (capture: true — ловим и когда фокус в iframe)
+        function showReloadOverlay() {
+            document.getElementById('reload-overlay').classList.add('visible');
+            document.getElementById('reload-overlay').setAttribute('aria-hidden', 'false');
+        }
+
+        // Перехват F5 и Cmd+R в главном окне — как раньше
         window.addEventListener('keydown', function (e) {
             if (e.key === 'F5' || (e.key === 'r' && (e.metaKey || e.ctrlKey))) {
                 e.preventDefault();
                 e.stopPropagation();
-                document.getElementById('reload-overlay').classList.add('visible');
-                document.getElementById('reload-overlay').setAttribute('aria-hidden', 'false');
+                showReloadOverlay();
             }
         }, true);
+
+        function attachReloadKeydownToFrame(frame) {
+            if (!frame || !frame.contentWindow) return;
+            try {
+                frame.contentWindow.addEventListener('keydown', function (e) {
+                    if (e.key === 'F5' || (e.key === 'r' && (e.metaKey || e.ctrlKey))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showReloadOverlay();
+                    }
+                }, true);
+            } catch (err) { /* cross-origin / file:// */ }
+        }
 
         document.getElementById('reload-cancel').addEventListener('click', function () {
             document.getElementById('reload-overlay').classList.remove('visible');
@@ -188,6 +205,9 @@
         // Закрытие вкладки/уход — предупреждение (при подтверждённом F5 не показываем)
         window.addEventListener('beforeunload', function (e) {
             if (sessionStorage.getItem('reload_confirmed')) return;
+            // Закрываем кастомный оверлей, чтобы при отмене стандартного алерта он не оставался висеть
+            document.getElementById('reload-overlay').classList.remove('visible');
+            document.getElementById('reload-overlay').setAttribute('aria-hidden', 'true');
             e.preventDefault();
             e.returnValue = '';
             return '';
@@ -208,11 +228,16 @@
         /** @type {Record<string, HTMLIFrameElement>} */
         const framesCache = {};
 
-        // Регистрируем начальный iframe в кэше
+        // Регистрируем начальный iframe в кэше и вешаем перехват F5 внутри него
         (function initCache() {
             const initialFrame = document.getElementById('tool-frame');
             const url = initialFrame.getAttribute('data-src');
             if (url) framesCache[url] = initialFrame;
+            function onFrameLoad() {
+                try { attachReloadKeydownToFrame(initialFrame); } catch (err) { /* cross-origin */ }
+            }
+            initialFrame.addEventListener('load', onFrameLoad);
+            if (initialFrame.contentDocument && initialFrame.contentDocument.readyState === 'complete') onFrameLoad();
         })();
 
         function loadTool(element, url) {
@@ -232,6 +257,9 @@
                 frame = document.createElement('iframe');
                 frame.className = 'content';
                 frame.setAttribute('data-src', url);
+                frame.addEventListener('load', function () {
+                    try { attachReloadKeydownToFrame(frame); } catch (err) { /* cross-origin */ }
+                });
                 frame.src = url;
                 framesWrapper.appendChild(frame);
                 framesCache[url] = frame;

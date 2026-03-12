@@ -243,6 +243,125 @@
             accent-color: #7aa2f7;
             cursor: pointer;
         }
+        /* Результаты проверки */
+        .results-section {
+            margin-top: 24px;
+            display: none;
+        }
+        .results-section.is-visible {
+            display: block;
+        }
+        .results-section h2 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #a9b1d6;
+            margin: 0 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .results-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .btn-download-report {
+            padding: 8px 14px;
+            background: #414868;
+            color: #c0caf5;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .btn-download-report:hover {
+            background: #565f89;
+        }
+        .btn-reset-results {
+            padding: 8px 14px;
+            background: #414868;
+            color: #c0caf5;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .btn-reset-results:hover {
+            background: #565f89;
+        }
+        .results-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .results-list li {
+            background: #24283b;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .result-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+        .result-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .result-status {
+            flex-shrink: 0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .result-status.ok {
+            background: rgba(158, 206, 106, 0.25);
+            color: #9ece6a;
+        }
+        .result-status.error {
+            background: rgba(247, 118, 142, 0.25);
+            color: #f7768e;
+        }
+        .result-status.pending {
+            background: rgba(186, 186, 186, 0.2);
+            color: #565f89;
+        }
+        .result-filename {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 13px;
+            color: #c0caf5;
+            flex: 1;
+        }
+        .result-toggle {
+            font-size: 0.8rem;
+            color: #7aa2f7;
+        }
+        .result-body {
+            padding: 0 12px 12px 12px;
+            display: none;
+            border-top: 1px solid #414868;
+        }
+        .result-body.is-open {
+            display: block;
+        }
+        .result-body pre {
+            margin: 10px 0 0 0;
+            padding: 10px;
+            background: #1a1b26;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #c0caf5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .result-body pre.error-text {
+            color: #f7768e;
+        }
     </style>
 </head>
 <body>
@@ -291,13 +410,22 @@
                 <ul class="file-list" id="list-other"></ul>
             </div>
         </div>
+
+        <div class="results-section" id="results-section">
+            <h2>Результаты проверки</h2>
+            <div class="results-toolbar">
+                <button type="button" class="btn-download-report" id="btn-download-report">Скачать общий отчёт</button>
+                <button type="button" class="btn-reset-results" id="btn-reset-results">Сбросить результаты</button>
+            </div>
+            <ul class="results-list" id="results-list"></ul>
+        </div>
     </div>
 
     <script>
     window.GDRIVE_ITEM_IDS = {};
     window.GDRIVE_ITEM_IDS_BY_BASENAME = {};
     </script>
-    <script src="drive_files_list.js"></script>
+    <script src="gemini_uploader.js"></script>
     <script src="audio_check.js"></script>
     <script>
         (function () {
@@ -333,14 +461,17 @@
                 revokeSelectedUrls();
                 const checkboxes = listMp3.querySelectorAll('input[type="checkbox"]');
                 const selected = [];
+                const names = [];
                 checkboxes.forEach(function (cb, i) {
                     if (cb.checked && mp3Files[i]) {
                         const url = URL.createObjectURL(mp3Files[i]);
                         issuedUrls.push(url);
                         selected.push(url);
+                        names.push(mp3Files[i].name);
                     }
                 });
                 window.selectedAudioLinks = selected;
+                window.selectedAudioNames = names;
                 updateSelectedCount();
             }
 
@@ -463,6 +594,10 @@
             if (btnCallGemini && window.callGemini) {
                 const apiKeyInput = document.getElementById('gemini-api-key');
                 const promptTextarea = document.getElementById('prompt-text');
+                const resultsSection = document.getElementById('results-section');
+                const resultsList = document.getElementById('results-list');
+                const btnDownloadReport = document.getElementById('btn-download-report');
+                const btnResetResults = document.getElementById('btn-reset-results');
 
                 function clearFieldErrors() {
                     if (apiKeyInput) apiKeyInput.classList.remove('field-error');
@@ -479,7 +614,71 @@
                 if (apiKeyInput) apiKeyInput.addEventListener('input', function () { clearFieldErrors(); resetRunButtonToReady(); });
                 if (promptTextarea) promptTextarea.addEventListener('input', function () { clearFieldErrors(); resetRunButtonToReady(); });
 
-                btnCallGemini.addEventListener('click', function () {
+                function renderReportEntry(entry, index) {
+                    const li = document.createElement('li');
+                    li.dataset.index = index;
+                    const statusClass = entry.success ? 'ok' : 'error';
+                    const statusText = entry.success ? 'OK' : 'Ошибка';
+                    const bodyContent = entry.error ? escapeHtml(entry.error) : escapeHtml(entry.text || '(пусто)');
+                    const bodyClass = entry.error ? 'error-text' : '';
+                    li.innerHTML =
+                        '<div class="result-row">' +
+                        '<span class="result-status ' + statusClass + '">' + escapeHtml(statusText) + '</span>' +
+                        '<span class="result-filename">' + escapeHtml(entry.fileName || '') + '</span>' +
+                        '<span class="result-toggle">Показать результат</span>' +
+                        '</div>' +
+                        '<div class="result-body ' + bodyClass + '"><pre>' + bodyContent + '</pre></div>';
+                    const row = li.querySelector('.result-row');
+                    const body = li.querySelector('.result-body');
+                    const toggle = li.querySelector('.result-toggle');
+                    row.addEventListener('click', function () {
+                        body.classList.toggle('is-open');
+                        toggle.textContent = body.classList.contains('is-open') ? 'Скрыть результат' : 'Показать результат';
+                    });
+                    return li;
+                }
+
+                function syncResultsList() {
+                    const report = window.checkReport || [];
+                    const total = window.selectedAudioLinks ? window.selectedAudioLinks.length : 0;
+                    const names = window.selectedAudioNames || [];
+                    resultsList.innerHTML = '';
+                    for (let idx = 0; idx < total; idx++) {
+                        const entry = report[idx];
+                        if (entry) {
+                            resultsList.appendChild(renderReportEntry(entry, idx));
+                        } else {
+                            const li = document.createElement('li');
+                            li.dataset.index = idx;
+                            const name = names[idx] !== undefined ? names[idx] : 'file_' + (idx + 1);
+                            li.innerHTML =
+                                '<div class="result-row">' +
+                                '<span class="result-status pending">Не проверен</span>' +
+                                '<span class="result-filename">' + escapeHtml(name) + '</span>' +
+                                '<span class="result-toggle">—</span>' +
+                                '</div>' +
+                                '<div class="result-body"><pre>Проверка остановлена (серия ошибок).</pre></div>';
+                            resultsList.appendChild(li);
+                        }
+                    }
+                }
+
+                if (btnDownloadReport && window.downloadCheckReport) {
+                    btnDownloadReport.addEventListener('click', function () {
+                        window.downloadCheckReport();
+                    });
+                }
+
+                if (btnResetResults) {
+                    btnResetResults.addEventListener('click', function () {
+                        window.checkReport = [];
+                        if (resultsList) resultsList.innerHTML = '';
+                        if (resultsSection) resultsSection.classList.remove('is-visible');
+                        resetRunButtonToReady();
+                    });
+                }
+
+                btnCallGemini.addEventListener('click', async function () {
                     if (btnCallGemini.disabled) return;
 
                     const modelId = (document.getElementById('model-select') && document.getElementById('model-select').value) || 'gemini-2.5-pro';
@@ -488,15 +687,6 @@
 
                     clearFieldErrors();
 
-                    if (!apiKey.trim() && !prompt.trim()) {
-                        if (apiKeyInput) apiKeyInput.classList.add('field-error');
-                        if (promptTextarea) promptTextarea.classList.add('field-error');
-                        geminiResult.textContent = 'Ошибка: введите GEMINI_API_KEY и PROMPT';
-                        geminiResult.className = 'gemini-result error';
-                        geminiResultWrap.style.display = 'block';
-                        geminiResultWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        return;
-                    }
                     if (!apiKey.trim()) {
                         if (apiKeyInput) apiKeyInput.classList.add('field-error');
                         geminiResult.textContent = 'Ошибка: введите GEMINI_API_KEY';
@@ -514,32 +704,57 @@
                         return;
                     }
 
-                    btnCallGemini.disabled = true;
-                    btnCallGemini.textContent = 'Отправка…';
-                    geminiResult.textContent = 'Запрос отправлен…';
-                    geminiResult.className = 'gemini-result';
-                    geminiResultWrap.style.display = 'block';
+                    const total = window.selectedAudioLinks ? window.selectedAudioLinks.length : 0;
+                    if (total === 0) {
+                        geminiResult.textContent = 'Ошибка: выберите хотя бы один файл.';
+                        geminiResult.className = 'gemini-result error';
+                        geminiResultWrap.style.display = 'block';
+                        return;
+                    }
 
-                    window.callGemini({ modelId: modelId, apiKey: apiKey.trim(), prompt: prompt.trim() })
-                        .then(function (out) {
-                            if (out.error) {
-                                geminiResult.textContent = 'Ошибка: ' + out.error;
-                                geminiResult.className = 'gemini-result error';
-                                btnCallGemini.textContent = 'Ошибка';
-                                btnCallGemini.disabled = false;
-                            } else {
-                                geminiResult.textContent = out.text || '(пустой ответ)';
-                                geminiResult.className = 'gemini-result';
-                                btnCallGemini.textContent = 'Отправлено';
+                    btnCallGemini.disabled = true;
+                    btnCallGemini.textContent = 'Проверка 0/' + total + '…';
+                    geminiResultWrap.style.display = 'none';
+
+                    window.checkReport = [];
+                    resultsSection.classList.add('is-visible');
+                    resultsList.innerHTML = '';
+                    for (let i = 0; i < total; i++) {
+                        const li = document.createElement('li');
+                        li.dataset.index = i;
+                        li.innerHTML =
+                            '<div class="result-row">' +
+                            '<span class="result-status pending">—</span>' +
+                            '<span class="result-filename">' + escapeHtml((window.selectedAudioNames && window.selectedAudioNames[i]) || 'file_' + (i + 1)) + '</span>' +
+                            '<span class="result-toggle">—</span>' +
+                            '</div>' +
+                            '<div class="result-body"><pre></pre></div>';
+                        resultsList.appendChild(li);
+                    }
+
+                    try {
+                        await window.runChecks(apiKey.trim(), modelId, prompt.trim(), {
+                            fileNames: window.selectedAudioNames || [],
+                            onProgress: function (data) {
+                                btnCallGemini.textContent = 'Проверка ' + (data.index + 1) + '/' + data.total + '…';
+                                const li = resultsList.querySelector('li[data-index="' + data.index + '"]');
+                                if (li && data.entry) {
+                                    const newLi = renderReportEntry(data.entry, data.index);
+                                    li.replaceWith(newLi);
+                                }
                             }
-                        })
-                        .catch(function (err) {
-                            var msg = err && err.message ? err.message : String(err);
-                            geminiResult.textContent = 'Ошибка: ' + msg;
-                            geminiResult.className = 'gemini-result error';
-                            btnCallGemini.textContent = 'Ошибка';
-                            btnCallGemini.disabled = false;
                         });
+                    } catch (err) {
+                        const msg = err && err.message ? err.message : String(err);
+                        geminiResult.textContent = 'Ошибка: ' + msg;
+                        geminiResult.className = 'gemini-result error';
+                        geminiResultWrap.style.display = 'block';
+                    }
+
+                    btnCallGemini.textContent = 'Завершено';
+                    btnCallGemini.disabled = false;
+                    syncResultsList();
+                    if (resultsSection) resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             }
         })();
