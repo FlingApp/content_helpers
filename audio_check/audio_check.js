@@ -182,6 +182,7 @@
             var fileName = (fileNames[i] !== undefined ? fileNames[i] : 'file_' + (i + 1));
             console.log('Проверяем файл ' + (i + 1) + ' из ' + links.length + ': ' + fileName);
 
+            onProgress({ index: i, total: links.length, stage: 'upload' });
             var uploadResult = await window.uploadToGemini(link, apiKey, 'audio/mp3');
             if (uploadResult.error) {
                 var uploadEntry = { fileName: fileName, success: false, error: uploadResult.error, stage: 'upload' };
@@ -203,6 +204,7 @@
                 }
             };
 
+            onProgress({ index: i, total: links.length, stage: 'gemini' });
             var geminiResult = await window.callGemini({
                 modelId: modelId,
                 apiKey: apiKey,

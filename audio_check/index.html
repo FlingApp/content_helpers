@@ -362,6 +362,76 @@
         .result-body pre.error-text {
             color: #f7768e;
         }
+        /* Спиннер и этап во время проверки */
+        .processing-status {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: linear-gradient(135deg, #24283b 0%, #1e2030 100%);
+            border: 1px solid #414868;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .processing-status.is-visible {
+            display: flex;
+        }
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid #414868;
+            border-top-color: #7aa2f7;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .processing-status-text {
+            font-size: 0.95rem;
+            color: #a9b1d6;
+        }
+        .processing-status-text strong {
+            color: #7aa2f7;
+        }
+        /* Сворачиваемый блок списка MP3 */
+        .file-list-section .collapsible-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 0;
+            margin-bottom: 12px;
+        }
+        .file-list-section .collapsible-header:hover {
+            color: #7aa2f7;
+        }
+        .file-list-section .collapsible-header h2 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .file-list-section .collapsible-header .chevron {
+            font-size: 0.9rem;
+            color: #7aa2f7;
+            transition: transform 0.2s ease;
+        }
+        .file-list-section .collapsible-header .chevron.is-collapsed {
+            transform: rotate(-90deg);
+        }
+        .file-list-section .collapsible-body {
+            overflow: hidden;
+            max-height: 2000px;
+            transition: max-height 0.25s ease, opacity 0.2s ease;
+        }
+        .file-list-section .collapsible-body.is-collapsed {
+            max-height: 0 !important;
+            opacity: 0;
+            margin-bottom: 0;
+            min-height: 0;
+        }
     </style>
 </head>
 <body>
@@ -403,12 +473,31 @@
         <div class="file-list-section">
             <div id="file-list-container">
                 <p class="empty-state" id="empty-state">Выберите папку, чтобы увидеть список файлов.</p>
-                <h2 id="heading-mp3" style="display: none;">MP3</h2>
-                <div id="mp3-toolbar" class="mp3-toolbar" style="display: none;"></div>
-                <ul class="file-list" id="list-mp3"></ul>
-                <h2 id="heading-other" style="display: none;">Остальные файлы</h2>
-                <ul class="file-list" id="list-other"></ul>
+                <div id="mp3-block" style="display: none;">
+                    <div class="collapsible-header" id="mp3-collapse-header" aria-expanded="true">
+                        <h2 id="heading-mp3">MP3</h2>
+                        <span class="chevron" id="mp3-chevron" aria-hidden="true">▼</span>
+                    </div>
+                    <div class="collapsible-body" id="mp3-collapse-body">
+                        <div id="mp3-toolbar" class="mp3-toolbar"></div>
+                        <ul class="file-list" id="list-mp3"></ul>
+                    </div>
+                </div>
+                <div id="other-block" style="display: none;">
+                    <div class="collapsible-header" id="other-collapse-header" aria-expanded="true">
+                        <h2 id="heading-other">Остальные файлы</h2>
+                        <span class="chevron" id="other-chevron" aria-hidden="true">▼</span>
+                    </div>
+                    <div class="collapsible-body" id="other-collapse-body">
+                        <ul class="file-list" id="list-other"></ul>
+                    </div>
+                </div>
             </div>
+        </div>
+
+        <div class="processing-status" id="processing-status">
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="processing-status-text" id="processing-status-text">Проверка…</div>
         </div>
 
         <div class="results-section" id="results-section">
@@ -439,9 +528,19 @@
             const currentFolderEl = document.getElementById('current-folder');
             const currentFolderNameEl = document.getElementById('current-folder-name');
             const mp3Toolbar = document.getElementById('mp3-toolbar');
+            const mp3Block = document.getElementById('mp3-block');
+            const mp3CollapseHeader = document.getElementById('mp3-collapse-header');
+            const mp3CollapseBody = document.getElementById('mp3-collapse-body');
+            const mp3Chevron = document.getElementById('mp3-chevron');
+            const otherBlock = document.getElementById('other-block');
+            const otherCollapseHeader = document.getElementById('other-collapse-header');
+            const otherCollapseBody = document.getElementById('other-collapse-body');
+            const otherChevron = document.getElementById('other-chevron');
             const btnCallGemini = document.getElementById('btn-call-gemini');
             const geminiResultWrap = document.getElementById('gemini-result-wrap');
             const geminiResult = document.getElementById('gemini-result');
+            const processingStatus = document.getElementById('processing-status');
+            const processingStatusText = document.getElementById('processing-status-text');
 
             /** Текущий список MP3 File объектов (после выбора папки). */
             let mp3Files = [];
@@ -543,8 +642,8 @@
                 currentFolderEl.classList.add('is-set');
 
                 emptyState.style.display = 'none';
-                headingMp3.style.display = mp3.length ? 'block' : 'none';
-                headingOther.style.display = other.length ? 'block' : 'none';
+                if (mp3Block) mp3Block.style.display = mp3.length ? 'block' : 'none';
+                if (otherBlock) otherBlock.style.display = other.length ? 'block' : 'none';
 
                 listMp3.innerHTML = mp3.map(function (f, idx) {
                     return '<li><label><input type="checkbox" data-mp3-index="' + idx + '">' + escapeHtml(f.name) + '</label></li>';
@@ -556,6 +655,27 @@
 
                 buildMp3Toolbar();
                 updateSelectedCount();
+
+                if (mp3CollapseHeader && mp3CollapseBody && mp3Chevron) {
+                    if (!mp3CollapseHeader.dataset.listenerAttached) {
+                        mp3CollapseHeader.dataset.listenerAttached = '1';
+                        mp3CollapseHeader.addEventListener('click', function () {
+                            const collapsed = mp3CollapseBody.classList.toggle('is-collapsed');
+                            mp3Chevron.classList.toggle('is-collapsed', collapsed);
+                            mp3CollapseHeader.setAttribute('aria-expanded', !collapsed);
+                        });
+                    }
+                }
+                if (otherCollapseHeader && otherCollapseBody && otherChevron) {
+                    if (!otherCollapseHeader.dataset.listenerAttached) {
+                        otherCollapseHeader.dataset.listenerAttached = '1';
+                        otherCollapseHeader.addEventListener('click', function () {
+                            const collapsed = otherCollapseBody.classList.toggle('is-collapsed');
+                            otherChevron.classList.toggle('is-collapsed', collapsed);
+                            otherCollapseHeader.setAttribute('aria-expanded', !collapsed);
+                        });
+                    }
+                }
 
                 listOther.innerHTML = other.map(function (f) {
                     return '<li>' + escapeHtml(f.name) + '</li>';
@@ -614,16 +734,57 @@
                 if (apiKeyInput) apiKeyInput.addEventListener('input', function () { clearFieldErrors(); resetRunButtonToReady(); });
                 if (promptTextarea) promptTextarea.addEventListener('input', function () { clearFieldErrors(); resetRunButtonToReady(); });
 
+                function stripFileNameColumnFromReport(text) {
+                    if (!text || typeof text !== 'string') return text;
+                    const lines = text.split('\n');
+                    const result = [];
+                    let tableLines = [];
+                    function flushTable() {
+                        if (tableLines.length === 0) return;
+                        const firstCells = tableLines[0].split('|').map(function (s) { return s.trim(); }).filter(Boolean);
+                        const fileNameIdx = firstCells.findIndex(function (c) { return /file\s*name/i.test(c); });
+                        if (fileNameIdx >= 0) {
+                            for (let i = 0; i < tableLines.length; i++) {
+                                const cells = tableLines[i].split('|').map(function (s) { return s.trim(); }).filter(Boolean);
+                                if (cells.length > fileNameIdx) {
+                                    cells.splice(fileNameIdx, 1);
+                                    result.push('| ' + cells.join(' | ') + ' |');
+                                } else {
+                                    result.push(tableLines[i]);
+                                }
+                            }
+                        } else {
+                            result.push.apply(result, tableLines);
+                        }
+                        tableLines = [];
+                    }
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        const trimmed = line.trim();
+                        const isTableRow = /^\|[\s\S]*\|$/.test(trimmed) && (trimmed.match(/\|/g) || []).length >= 2;
+                        if (isTableRow) {
+                            tableLines.push(line);
+                        } else {
+                            flushTable();
+                            result.push(line);
+                        }
+                    }
+                    flushTable();
+                    return result.join('\n');
+                }
+
                 function renderReportEntry(entry, index) {
                     const li = document.createElement('li');
                     li.dataset.index = index;
                     const statusClass = entry.success ? 'ok' : 'error';
-                    const statusText = entry.success ? 'OK' : 'Ошибка';
-                    const bodyContent = entry.error ? escapeHtml(entry.error) : escapeHtml(entry.text || '(пусто)');
+                    const statusLabel = entry.success ? '✅ OK' : '🛑 Ошибка';
+                    const rawBody = entry.error ? entry.error : (entry.text || '(пусто)');
+                    const displayBody = entry.error ? rawBody : stripFileNameColumnFromReport(rawBody);
+                    const bodyContent = escapeHtml(displayBody);
                     const bodyClass = entry.error ? 'error-text' : '';
                     li.innerHTML =
                         '<div class="result-row">' +
-                        '<span class="result-status ' + statusClass + '">' + escapeHtml(statusText) + '</span>' +
+                        '<span class="result-status ' + statusClass + '">' + statusLabel + '</span>' +
                         '<span class="result-filename">' + escapeHtml(entry.fileName || '') + '</span>' +
                         '<span class="result-toggle">Показать результат</span>' +
                         '</div>' +
@@ -653,7 +814,7 @@
                             const name = names[idx] !== undefined ? names[idx] : 'file_' + (idx + 1);
                             li.innerHTML =
                                 '<div class="result-row">' +
-                                '<span class="result-status pending">Не проверен</span>' +
+                                '<span class="result-status pending">⏳ Не проверен</span>' +
                                 '<span class="result-filename">' + escapeHtml(name) + '</span>' +
                                 '<span class="result-toggle">—</span>' +
                                 '</div>' +
@@ -713,8 +874,12 @@
                     }
 
                     btnCallGemini.disabled = true;
-                    btnCallGemini.textContent = 'Проверка 0/' + total + '…';
+                    btnCallGemini.textContent = 'Проверка…';
                     geminiResultWrap.style.display = 'none';
+                    if (processingStatus) {
+                        processingStatus.classList.add('is-visible');
+                        processingStatusText.textContent = 'Подготовка…';
+                    }
 
                     window.checkReport = [];
                     resultsSection.classList.add('is-visible');
@@ -722,13 +887,13 @@
                     for (let i = 0; i < total; i++) {
                         const li = document.createElement('li');
                         li.dataset.index = i;
-                        li.innerHTML =
-                            '<div class="result-row">' +
-                            '<span class="result-status pending">—</span>' +
-                            '<span class="result-filename">' + escapeHtml((window.selectedAudioNames && window.selectedAudioNames[i]) || 'file_' + (i + 1)) + '</span>' +
-                            '<span class="result-toggle">—</span>' +
-                            '</div>' +
-                            '<div class="result-body"><pre></pre></div>';
+                            li.innerHTML =
+                                '<div class="result-row">' +
+                                '<span class="result-status pending">⏳ —</span>' +
+                                '<span class="result-filename">' + escapeHtml((window.selectedAudioNames && window.selectedAudioNames[i]) || 'file_' + (i + 1)) + '</span>' +
+                                '<span class="result-toggle">—</span>' +
+                                '</div>' +
+                                '<div class="result-body"><pre></pre></div>';
                         resultsList.appendChild(li);
                     }
 
@@ -736,12 +901,23 @@
                         await window.runChecks(apiKey.trim(), modelId, prompt.trim(), {
                             fileNames: window.selectedAudioNames || [],
                             onProgress: function (data) {
-                                btnCallGemini.textContent = 'Проверка ' + (data.index + 1) + '/' + data.total + '…';
-                                const li = resultsList.querySelector('li[data-index="' + data.index + '"]');
-                                if (li && data.entry) {
-                                    const newLi = renderReportEntry(data.entry, data.index);
-                                    li.replaceWith(newLi);
+                                const n = (data.index + 1);
+                                const m = data.total;
+                                if (data.entry) {
+                                    const li = resultsList.querySelector('li[data-index="' + data.index + '"]');
+                                    if (li) {
+                                        const newLi = renderReportEntry(data.entry, data.index);
+                                        li.replaceWith(newLi);
+                                    }
                                 }
+                                if (data.stage === 'upload') {
+                                    if (processingStatusText) processingStatusText.innerHTML = 'Загрузка файла <strong>' + n + '/' + m + '</strong>';
+                                } else if (data.stage === 'gemini') {
+                                    if (processingStatusText) processingStatusText.innerHTML = 'Проверка модели <strong>' + n + '/' + m + '</strong>';
+                                } else if (data.entry) {
+                                    if (processingStatusText) processingStatusText.innerHTML = 'Обработано <strong>' + n + '/' + m + '</strong>';
+                                }
+                                btnCallGemini.textContent = 'Проверка ' + n + '/' + m + '…';
                             }
                         });
                     } catch (err) {
@@ -753,6 +929,7 @@
 
                     btnCallGemini.textContent = 'Завершено';
                     btnCallGemini.disabled = false;
+                    if (processingStatus) processingStatus.classList.remove('is-visible');
                     syncResultsList();
                     if (resultsSection) resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
